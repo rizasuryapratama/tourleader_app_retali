@@ -43,7 +43,7 @@ class _ItineraryListPageState extends State<ItineraryListPage> {
 
       try {
         final result = await _service.list();
-        
+
         // Hanya panggil setState jika data benar-benar berubah
         if (_hasDataChanged(_items, result.data)) {
           setState(() {
@@ -61,12 +61,12 @@ class _ItineraryListPageState extends State<ItineraryListPage> {
 
   bool _hasDataChanged(List<Itinerary> oldList, List<Itinerary> newList) {
     if (oldList.length != newList.length) return true;
-    
+
     for (int i = 0; i < newList.length; i++) {
       final n = newList[i];
       // Cari data lama berdasarkan ID (antisipasi jika urutan berubah)
       final o = oldList.firstWhere((item) => item.id == n.id, orElse: () => n);
-      
+
       if (n.title != o.title) return true;
       if (n.startDate != o.startDate) return true;
       if (n.endDate != o.endDate) return true;
@@ -109,7 +109,8 @@ class _ItineraryListPageState extends State<ItineraryListPage> {
     return Scaffold(
       backgroundColor: const Color(0xfff7f7f7),
       appBar: AppBar(
-        backgroundColor: AppTheme.brand,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -128,9 +129,20 @@ class _ItineraryListPageState extends State<ItineraryListPage> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _refreshData,
-            tooltip: 'Refresh',
           ),
         ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF842D62), // 🔥 sama kayak home
+                Color(0xFF5A1847), // 🔥 sama kayak home
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
       ),
       body: FutureBuilder<({List<Itinerary> data, int? nextPage})>(
         future: _future,
@@ -145,7 +157,9 @@ class _ItineraryListPageState extends State<ItineraryListPage> {
           }
 
           // Gunakan _items yang selalu di-sync oleh timer
-          final displayItems = _items.isNotEmpty ? _items : (snap.data?.data ?? []);
+          final displayItems = _items.isNotEmpty
+              ? _items
+              : (snap.data?.data ?? []);
 
           if (displayItems.isEmpty) return _buildEmptyState();
 

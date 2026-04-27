@@ -10,9 +10,20 @@
                 <small class="text-muted">Kelola data Tour Leader & penempatan kloter</small>
             </div>
 
-            <button class="btn btn-primary px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#tambahLeaderModal">
-                <i class="bi bi-plus-lg me-1"></i> Tambah
-            </button>
+            <div class="d-flex gap-2">
+
+                <!-- Button Kloter -->
+                <a href="{{ route('kloter.index') }}" class="btn btn-outline-primary px-4 shadow-sm rounded-pill">
+                    <i class="bi bi-calendar-event me-1"></i> Kloter
+                </a>
+
+                <!-- Button Tambah -->
+                <button class="btn btn-primary px-4 shadow-sm rounded-pill" data-bs-toggle="modal"
+                    data-bs-target="#tambahLeaderModal">
+                    <i class="bi bi-plus-lg me-1"></i> Tambah Tourleader
+                </button>
+
+            </div>
         </div>
 
         <!-- Alert -->

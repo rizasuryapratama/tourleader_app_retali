@@ -17,53 +17,45 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
+        $email = strtolower($request->email);
+
         // =========================
-        // CEK TOURLEADER DULU
+        // CEK TOURLEADER
         // =========================
         $user = Tourleader::with('kloter')
-            ->where('email', $request->email)
+            ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
 
         $role = 'tourleader';
 
         // =========================
-        // KALAU TIDAK ADA, CEK MUTHAWIF
+        // CEK MUTHAWIF
         // =========================
         if (!$user) {
             $user = Muthawif::with('kloter')
-                ->where('email', $request->email)
+                ->whereRaw('LOWER(email) = ?', [$email])
                 ->first();
 
             $role = 'muthawif';
         }
 
         // =========================
-        // KALAU TIDAK ADA SAMA SEKALI
+        // VALIDASI LOGIN
         // =========================
-        if (!$user) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email tidak ditemukan',
-            ], 404);
-        }
-
-        // =========================
-        // CEK PASSWORD
-        // =========================
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Password salah',
+                'message' => 'Email atau password salah',
             ], 401);
         }
 
         // =========================
-        // BUAT TOKEN
+        // TOKEN
         // =========================
         $token = $user->createToken('auth_token')->plainTextToken;
 
         // =========================
-        // RESPONSE FINAL
+        // RESPONSE
         // =========================
         return response()->json([
             'success' => true,

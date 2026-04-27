@@ -732,23 +732,8 @@
                                 class="submenu-item {{ request()->routeIs('admin.itinerary.index') ? 'active' : '' }}">
                                 <i class="fas fa-map"></i> Halaman Itinerary
                             </a>
-
-                            <a href="{{ route('admin.itinerary.kota.index') }}"
-                                class="submenu-item {{ request()->routeIs('admin.itinerary.kota.index') ? 'active' : '' }}">
-                                <i class="fas fa-city"></i>
-                                Pilihan Kota
-                            </a>
                         </div>
                     </div>
-                </li>
-
-                <!-- Kloter -->
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->is('kloter*') ? 'active' : '' }}"
-                        href="{{ route('kloter.index') }}">
-                        <i class="fas fa-plane-departure"></i>
-                        <span>Kloter</span>
-                    </a>
                 </li>
 
                 <!-- Riwayat Absensi -->

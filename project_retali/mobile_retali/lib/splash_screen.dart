@@ -11,13 +11,11 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late AnimationController _logoController;
   late Animation<double> _logoScale;
 
-  String _fullText = "Retali Mustajab Travel";
+  final String _fullText = "Retali Mustajab Travel";
   String _visibleText = "";
   bool _startTyping = false;
   bool _showCursor = true;
@@ -26,41 +24,44 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // 🔥 LOGO ZOOM LEBIH LAMA & HALUS
+    // 1. Animasi Logo (1.5 detik agar lebih dinamis)
     _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 1500),
     );
 
-    _logoScale = Tween<double>(begin: 0.2, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: Curves.easeOutBack,
+        curve: Curves.easeOutBack, 
       ),
     );
 
     _logoController.forward();
 
-    // ⏳ Setelah logo selesai → mulai typing
-    Future.delayed(const Duration(seconds: 3), () {
-      setState(() => _startTyping = true);
-      _startTypingEffect();
-      _startCursorBlink();
+    // 2. Mulai mengetik teks saat animasi logo hampir selesai
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() => _startTyping = true);
+        _startTypingEffect();
+        _startCursorBlink();
+      }
     });
 
-    // 🔐 AUTO LOGIN CHECK (lebih lama biar animasi keliatan)
+    // 3. Cek Login & Navigasi (Total tunggu 4 detik)
     _checkLogin();
   }
 
   void _startTypingEffect() {
     int index = 0;
-
-    Timer.periodic(const Duration(milliseconds: 120), (timer) {
+    Timer.periodic(const Duration(milliseconds: 70), (timer) {
       if (index < _fullText.length) {
-        setState(() {
-          _visibleText += _fullText[index];
-          index++;
-        });
+        if (mounted) {
+          setState(() {
+            _visibleText += _fullText[index];
+            index++;
+          });
+        }
       } else {
         timer.cancel();
       }
@@ -68,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startCursorBlink() {
-    Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -80,7 +81,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkLogin() async {
-    await Future.delayed(const Duration(seconds: 6));
+    // Memberikan waktu user melihat animasi tanpa menunggu terlalu lama
+    await Future.delayed(const Duration(milliseconds: 4000));
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -114,8 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
-            // 🔥 LOGO ZOOM
+            // LOGO DENGAN ANIMASI ZOOM
             ScaleTransition(
               scale: _logoScale,
               child: Image.asset(
@@ -124,30 +125,33 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            const SizedBox(height: 50),
+            const SizedBox(height: 40),
 
-            // 🔥 TYPING TEXT + CURSOR
+            // TEKS DENGAN EFEK MENGETIK
             if (_startTyping)
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: _visibleText,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF842D62),
+              SizedBox(
+                height: 30, // Mencegah layout bergeser saat teks muncul
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: _visibleText,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF842D62),
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: _showCursor ? "|" : " ",
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF842D62),
+                      TextSpan(
+                        text: _showCursor ? "|" : " ",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF842D62),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
           ],

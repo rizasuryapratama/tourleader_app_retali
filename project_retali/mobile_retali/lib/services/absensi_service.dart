@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AbsensiService {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://192.168.106.160:8000/api',
+    defaultValue: 'http://192.168.154.160:8000/api',
   );
 
   static Future<String?> _getToken() async {

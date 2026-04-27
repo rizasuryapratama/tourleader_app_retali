@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class JamaahAttendanceService {
-  static const String baseUrl = 'http://192.168.106.160:8000/api';
+  static const String baseUrl = 'http://192.168.154.160:8000/api';
   
   // ============================================================
   // 🔑 AMBIL TOKEN TOUR LEADER (SELARAS DENGAN LOGIN)

@@ -16,7 +16,7 @@ class ApiService {
   // Contoh untuk hosting:
   // - https://api.retali.com
   //
-  static const String ROOT_URL = 'http://192.168.106.160:8000/api';
+  static const String ROOT_URL = 'http://192.168.154.160:8000/api';
 
   static String get _baseUrl {
     final root = ROOT_URL.endsWith('/')
@@ -38,6 +38,11 @@ class ApiService {
         baseUrl: _baseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 20),
+        // TAMBAHKAN HEADERS DI SINI
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
         validateStatus: (s) => s != null && s < 500,
       ),
     );
@@ -107,33 +112,53 @@ class ApiService {
     final dio = _client();
 
     try {
+      print("=== LOGIN REQUEST ===");
+      print("URL: ${dio.options.baseUrl}/login");
+      print("EMAIL: $email");
+      print("PASSWORD: $password");
+
       final res = await dio.post(
         '/login',
         data: {'email': email, 'password': password},
       );
 
+      print("=== RESPONSE ===");
+      print("STATUS CODE: ${res.statusCode}");
+      print("DATA: ${res.data}");
+
       final data = res.data;
 
-      final token = data['token']?.toString();
-
-      if (res.statusCode == 200 && data['success'] == true && token != null) {
+      if (res.statusCode == 200 && data['token'] != null) {
+        final token = data['token'].toString();
         await _saveToken(token);
 
         if (data['user'] is Map<String, dynamic>) {
           await saveProfileToLocal(data['user']);
         }
 
-        return {'success': true, 'message': data['message']};
+        return {'success': true, 'message': 'Login Berhasil'};
       }
 
-      return {'success': false, 'message': data['message'] ?? 'Login gagal'};
-    } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Server error',
+        'message': data['message'] ?? 'Email atau password salah',
+      };
+    } on DioException catch (e) {
+      print("=== DIO ERROR ===");
+      print("TYPE: ${e.type}");
+      print("MESSAGE: ${e.message}");
+      print("STATUS: ${e.response?.statusCode}");
+      print("DATA: ${e.response?.data}");
+
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Server error: ${e.type}',
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      print("=== UNKNOWN ERROR ===");
+      print(e);
+
+      return {'success': false, 'message': 'Terjadi kesalahan sistem'};
     }
   }
 

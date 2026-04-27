@@ -43,9 +43,16 @@ class _LoginScreenState extends State<LoginScreen>
     final email = _emailC.text.trim();
     final pass = _passC.text;
 
+    print("=== USER INPUT ===");
+    print("EMAIL: $email");
+    print("PASSWORD: $pass");
+
     setState(() => _loading = true);
 
     final result = await ApiService.login(email, pass);
+
+    print("=== RESULT DARI API ===");
+    print(result);
 
     setState(() => _loading = false);
 
