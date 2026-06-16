@@ -16,7 +16,7 @@ class ApiService {
   // Contoh untuk hosting:
   // - https://api.retali.com
   //
-  static const String ROOT_URL = 'http://192.168.154.160:8000/api';
+  static const String ROOT_URL = 'http://192.168.205.160:8000/api';
 
   static String get _baseUrl {
     final root = ROOT_URL.endsWith('/')
@@ -54,15 +54,26 @@ class ApiService {
   // TOKEN HANDLER
   // =====================
   static const _tokenKey = 'token';
+  static const _sessionTokenKey = 'session_token';
 
   static Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
   }
 
+  static Future<void> _saveSessionToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionTokenKey, token);
+  }
+
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  static Future<String?> _getSessionToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_sessionTokenKey);
   }
 
   static Future<void> logout() async {
@@ -75,10 +86,15 @@ class ApiService {
   static Future<Dio> _authedClient() async {
     final dio = _client();
     final token = await _getToken();
+    final sessionToken = await _getSessionToken();
 
     dio.options.headers = {
       'Accept': 'application/json',
+
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+
+      if (sessionToken != null && sessionToken.isNotEmpty)
+        'Session-Token': sessionToken,
     };
 
     return dio;
@@ -130,8 +146,10 @@ class ApiService {
 
       if (res.statusCode == 200 && data['token'] != null) {
         final token = data['token'].toString();
-        await _saveToken(token);
+        final sessionToken = data['session_token'].toString();
 
+        await _saveToken(token);
+        await _saveSessionToken(sessionToken);
         if (data['user'] is Map<String, dynamic>) {
           await saveProfileToLocal(data['user']);
         }

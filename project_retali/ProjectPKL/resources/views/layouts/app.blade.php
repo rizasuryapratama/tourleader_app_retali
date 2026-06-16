@@ -3,7 +3,9 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Retail System') }}</title>
 
     <!-- Bootstrap -->
@@ -292,7 +294,7 @@
             border-radius: 12px;
             font-size: 1.3rem;
             cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             transition: var(--transition);
         }
 
@@ -583,6 +585,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -633,6 +636,7 @@
             background: var(--accent-color) !important;
         }
     </style>
+    @stack('styles')
 </head>
 
 <body>
@@ -640,7 +644,7 @@
     <button class="mobile-menu-btn" id="mobileMenuBtn">
         <i class="fas fa-bars"></i>
     </button>
-    
+
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -648,7 +652,7 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="{{ route('dashboard') }}" class="sidebar-brand">
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="sidebar-logo">
+                <img src="{{ asset('images/logo_zero.png') }}" alt="Logo" class="sidebar-logo">
                 <span>Retali Operation</span>
             </a>
         </div>
@@ -665,6 +669,14 @@
                     </a>
                 </li>
 
+                <!-- Kloter -->
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->is('kloter*') ? 'active' : '' }}"
+                        href="{{ route('kloter.index') }}">
+                        <i class="fas fa-layer-group"></i>
+                        <span>Kloter</span>
+                    </a>
+                </li>
                 <!-- Pengguna -->
                 <li class="nav-item">
                     <a class="nav-link {{ request()->is('pengguna*', 'tourleaders*') ? 'active' : '' }}"
@@ -682,6 +694,7 @@
                                 <i class="fas fa-user-tie"></i>
                                 Tour Leader
                             </a>
+
                             <a href="{{ route('muthawif.index') }}"
                                 class="submenu-item {{ request()->is('pengguna/mutowif*') ? 'active' : '' }}">
                                 <i class="fas fa-user-check"></i>
@@ -736,6 +749,35 @@
                     </div>
                 </li>
 
+                <!-- Persiapan Umroh -->
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->is('persiapan*') ? 'active' : '' }}" href="#persiapanSubmenu"
+                        data-bs-toggle="collapse" aria-expanded="{{ request()->is('persiapan*') ? 'true' : 'false' }}">
+
+                        <i class="fas fa-kaaba"></i>
+                        <span>Persiapan Umroh</span>
+                        <i class="fas fa-chevron-down ms-auto"></i>
+                    </a>
+
+                    <div class="collapse {{ request()->is('persiapan*') ? 'show' : '' }}" id="persiapanSubmenu">
+                        <div class="submenu">
+
+                            <!-- Persiapan Diniyah -->
+                            <a href="" class="submenu-item {{ request()->is('') ? 'active' : '' }}">
+                                <i class="fas fa-book-quran"></i>
+                                Persiapan Diniyah
+                            </a>
+
+                            <!-- Persiapan Teknis -->
+                            <a href="" class="submenu-item {{ request()->is('') ? 'active' : '' }}">
+                                <i class="fas fa-cogs"></i>
+                                Persiapan Teknis
+                            </a>
+
+                        </div>
+                    </div>
+                </li>
+
                 <!-- Riwayat Absensi -->
                 <li class="nav-item">
                     <a class="nav-link {{ request()->is('admin/attendances*', 'admin/absensi*') ? 'active' : '' }}"
@@ -773,38 +815,6 @@
                     </div>
                 </li>
 
-                <!-- Persiapan Umroh -->
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->is('persiapan*') ? 'active' : '' }}" href="#persiapanSubmenu"
-                        data-bs-toggle="collapse"
-                        aria-expanded="{{ request()->is('persiapan*') ? 'true' : 'false' }}">
-
-                        <i class="fas fa-kaaba"></i>
-                        <span>Persiapan Umroh</span>
-                        <i class="fas fa-chevron-down ms-auto"></i>
-                    </a>
-
-                    <div class="collapse {{ request()->is('persiapan*') ? 'show' : '' }}" id="persiapanSubmenu">
-                        <div class="submenu">
-
-                            <!-- Persiapan Diniyah -->
-                            <a href=""
-                                class="submenu-item {{ request()->is('') ? 'active' : '' }}">
-                                <i class="fas fa-book-quran"></i>
-                                Persiapan Diniyah
-                            </a>
-
-                            <!-- Persiapan Teknis -->
-                            <a href=""
-                                class="submenu-item {{ request()->is('') ? 'active' : '' }}">
-                                <i class="fas fa-cogs"></i>
-                                Persiapan Teknis
-                            </a>
-
-                        </div>
-                    </div>
-                </li>
-
                 <!-- Riwayat Scan (Ubah dari link tunggal menjadi submenu) -->
                 <li class="nav-item">
                     <a class="nav-link {{ request()->is('scans*') || request()->is('admin/scans*') || request()->is('scan/koper*') || request()->is('scan/paspor*') ? 'active' : '' }}"
@@ -835,6 +845,8 @@
                         </div>
                     </div>
                 </li>
+
+
 
                 <!-- Notifikasi -->
                 <li class="nav-item">
@@ -885,6 +897,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     @stack('scripts')
 
     <script>
@@ -893,19 +907,19 @@
             const mobileMenuBtn = document.getElementById('mobileMenuBtn');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            
+
             function openSidebar() {
                 sidebar.classList.add('open');
                 overlay.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
-            
+
             function closeSidebar() {
                 sidebar.classList.remove('open');
                 overlay.classList.remove('active');
                 document.body.style.overflow = '';
             }
-            
+
             if (mobileMenuBtn) {
                 mobileMenuBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -916,11 +930,11 @@
                     }
                 });
             }
-            
+
             if (overlay) {
                 overlay.addEventListener('click', closeSidebar);
             }
-            
+
             // Tutup sidebar saat link di klik di mobile
             const allLinks = document.querySelectorAll('.sidebar .nav-link, .sidebar .submenu-item');
             allLinks.forEach(link => {
@@ -936,7 +950,7 @@
                     }
                 });
             });
-            
+
             // Smooth animations
             const elements = document.querySelectorAll('.card, .nav-link, .stats-card');
             elements.forEach((element, index) => {
@@ -968,7 +982,7 @@
                     }
                 });
             });
-            
+
             // Handle resize: jika window lebih dari 992 dan sidebar terbuka, tutup
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 992 && sidebar.classList.contains('open')) {

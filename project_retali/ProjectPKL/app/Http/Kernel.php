@@ -65,10 +65,11 @@ class Kernel extends HttpKernel
 
         // Auth
         'auth' => \App\Http\Middleware\Authenticate::class,
+        'check.session' => \App\Http\Middleware\CheckSingleSession::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
 
-        // Authorization & Security
+        
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,

@@ -15,9 +15,9 @@ return new class extends Migration
         $table->id();
         $table->string('title');
         $table->unsignedInteger('question_count');
-        $table->dateTime('opens_at');   // << ganti dari timestamp
-        $table->dateTime('closes_at');  // << ganti dari timestamp
-        $table->timestamps();           // ini aman
+        $table->dateTime('opens_at');
+        $table->dateTime('closes_at');
+        $table->timestamps();
     });
 }
 

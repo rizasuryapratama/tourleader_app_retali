@@ -7,16 +7,15 @@ use App\Models\Itinerary;
 use App\Models\ItineraryDay;
 use App\Models\ItineraryItem;
 use App\Models\TourLeader;
-use App\Models\City;
+use App\Models\Muthawif;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse; 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use App\Models\City;
 
 class ItineraryController extends Controller
 {
-    // ======================================================
-    // LIST ITINERARY
-    // ======================================================
+    // ── INDEX ──────────────────────────────────────────────
     public function index()
     {
         $itineraries = Itinerary::withCount('days')
@@ -26,287 +25,303 @@ class ItineraryController extends Controller
         return view('admin.itinerary.index', compact('itineraries'));
     }
 
-
-    // ======================================================
-    // FORM 1 – BUAT DRAFT ITINERARY
-    // ======================================================
+    // ── CREATE (Single Page) ───────────────────────────────
     public function create()
     {
-        $tourLeaders = TourLeader::orderBy('name')->get();
-        return view('admin.itinerary.form1', compact('tourLeaders'));
+        $tourLeaders = TourLeader::with('kloter')
+            ->orderBy('name')
+            ->get();
+
+        $muthawifs = Muthawif::with('kloter')
+            ->orderBy('nama')
+            ->get();
+
+        return view('admin.itinerary.create', compact('tourLeaders', 'muthawifs'));
     }
 
-    public function storeForm1(Request $request)
+    // ── STORE (Single Submit dari Create Page) ─────────────
+    public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'title'                => 'required|string|max:150',
-            'start_date'           => 'nullable|date',
-            'end_date'             => 'nullable|date|after_or_equal:start_date',
-            'send_to'              => 'required|in:all,selected',
-            'selected_tourleaders' => 'array',
-            'days_count'           => 'required|integer|min:1|max:30',
+            'start_date'           => 'required|date|after_or_equal:today',
+            'end_date'             => 'required|date|after_or_equal:start_date',
+            'send_to'              => 'required|in:all_users,all_tourleaders,all_muthawif,selected',
+            'selected_users'       => 'array',
+            'selected_users.*'     => 'string',   // format: "tl:{id}" atau "mw:{id}"
+            'days'                 => 'required|array|min:1',
+            'days.*.day_number'    => 'required|integer|min:1',
+            'days.*.city'          => 'required|string|max:120',
+            'days.*.date'          => 'required|date',
+            'days.*.items'         => 'required|array|min:1',
+            'days.*.items.*.start_time' => 'nullable|date_format:H:i',
+            'days.*.items.*.end_time'   => 'nullable|date_format:H:i',
+            'days.*.items.*.title' => 'required|string|max:150',
+            'days.*.items.*.content' => 'nullable|string',
         ]);
 
         if ($data['send_to'] === 'selected') {
             $request->validate([
-                'selected_tourleaders' => 'required|array|min:1',
+                'selected_users' => 'required|array|min:1',
             ]);
         }
-
-        session()->put('itinerary_draft', [
-            'title'                => $data['title'],
-            'start_date'           => $data['start_date'] ?? null,
-            'end_date'             => $data['end_date'] ?? null,
-            'send_to'              => $data['send_to'],
-            'selected_tourleaders' => $data['selected_tourleaders'] ?? [],
-            'days_count'           => $data['days_count'],
-        ]);
-
-        return redirect()->route('admin.itinerary.form2');
-    }
-
-
-    // ======================================================
-    // FORM 2 – SET JUMLAH ITEM PER HARI
-    // ======================================================
-    public function form2()
-    {
-        $draft = session('itinerary_draft');
-        if (!$draft) {
-            return redirect()->route('admin.itinerary.form1')
-                ->with('error', 'Draft tidak ditemukan. Mulai ulang form.');
-        }
-
-        $tourLeaders = TourLeader::orderBy('name')->get();
-        return view('admin.itinerary.form2', compact('draft', 'tourLeaders'));
-    }
-
-    public function storeForm2(Request $request)
-    {
-        $draft = session('itinerary_draft');
-        if (!$draft) {
-            return redirect()->route('admin.itinerary.form1')
-                ->with('error', 'Draft tidak ditemukan.');
-        }
-
-        $data = $request->validate([
-            'days'              => 'required|array',
-            'days.*.item_count' => 'required|integer|min:0|max:20',
-        ]);
 
         $itinerary = null;
 
-        DB::transaction(function () use ($draft, $data, &$itinerary) {
-
-            // 1) BUAT ITINERARY
+        DB::transaction(function () use ($data, &$itinerary) {
+            // 1) Buat itinerary
             $itinerary = Itinerary::create([
-                'title'           => $draft['title'],
-                'start_date'      => $draft['start_date'],
-                'end_date'        => $draft['end_date'],
-                'tour_leader_name'=> $draft['send_to'] === 'all'
-                                        ? 'Semua Tour Leader'
-                                        : 'Terpilih',
+                'title'      => $data['title'],
+                'start_date' => $data['start_date'],
+                'end_date'   => $data['end_date'],
+                'send_to'    => $data['send_to'],
+                'status'     => 'draft',
             ]);
 
-            // 2) ATTACH TL
-            $tlIds = $draft['send_to'] === 'all'
-                ? TourLeader::pluck('id')->toArray()
-                : ($draft['selected_tourleaders'] ?? []);
+            // 2) Sync penerima
+            $this->syncRecipients($itinerary, $data['send_to'], $data['selected_users'] ?? []);
 
-            $itinerary->tourLeaders()->sync($tlIds);
-
-            // 3) BUAT DAY & ITEM-ITEM
-            $daysCount = intval($draft['days_count']);
-
-            for ($d = 1; $d <= $daysCount; $d++) {
-
+            // 3) Buat days & items
+            foreach ($data['days'] as $dayData) {
                 $day = ItineraryDay::create([
                     'itinerary_id' => $itinerary->id,
-                    'day_number'   => $d,
+                    'day_number'   => $dayData['day_number'],
+                    'city'         => $dayData['city'],
+                    'date'         => $dayData['date'],
+                    'item_count'   => count($dayData['items']),
                 ]);
 
-                $itemCount = intval($data['days'][$d - 1]['item_count'] ?? 0);
-
-                for ($i = 1; $i <= $itemCount; $i++) {
+                foreach ($dayData['items'] as $seq => $itemData) {
                     ItineraryItem::create([
                         'itinerary_day_id' => $day->id,
-                        'sequence'         => $i,
+                        'sequence'         => $seq + 1,
+                        'start_time' => $itemData['start_time'] ?? null,
+                        'end_time'   => $itemData['end_time'] ?? null,
+                        'title'            => $itemData['title'],
+                        'content'          => $itemData['content'] ?? null,
                     ]);
                 }
-            }
-
-            session()->forget('itinerary_draft');
-        });
-
-        return redirect()->route('admin.itinerary.fill-days', $itinerary)
-            ->with('ok', 'Itinerary berhasil dibuat. Silakan lengkapi detail hari.');
-    }
-
-
-    // ======================================================
-    // FORM 3 – ISI KOTA & TANGGAL PER HARI
-    // ======================================================
-    public function fillDays(Itinerary $itinerary)
-    {
-        $itinerary->load('days.items', 'tourLeaders');
-        $cities = City::orderBy('name')->get();
-
-        return view('admin.itinerary.form3-fill-days', compact('itinerary', 'cities'));
-    }
-
-    public function saveDays(Request $request, Itinerary $itinerary)
-    {
-        $data = $request->validate([
-            'days'        => 'required|array',
-            'days.*.id'   => 'required|exists:itinerary_days,id',
-            'days.*.city' => 'nullable|string|max:120',
-            'days.*.date' => 'nullable|date',
-        ]);
-
-        DB::transaction(function () use ($data) {
-            foreach ($data['days'] as $d) {
-                ItineraryDay::where('id', $d['id'])->update([
-                    'city' => $d['city'] ?? null,
-                    'date' => $d['date'] ?? null,
-                ]);
-            }
-        });
-
-        // Arahkan ke FORM 4 (semua hari)
-        return redirect()
-            ->route('admin.itinerary.fill-items', $itinerary)
-            ->with('ok', 'Informasi hari tersimpan. Silakan isi semua kegiatan.');
-    }
-
-
-    // ======================================================
-    // FORM 4 – ISI SEMUA DETAIL ITEM UNTUK SEMUA HARI
-    // ======================================================
-    public function fillItems(Itinerary $itinerary)
-    {
-        $itinerary->load('days.items');
-
-        // urutkan day
-        $days = $itinerary->days->sortBy('day_number');
-
-        return view('admin.itinerary.form4-fill-items', compact('itinerary', 'days'));
-    }
-
-
-    // SIMPAN SEMUA DAY SEKALIGUS
-    public function saveItems(Request $request, Itinerary $itinerary)
-    {
-        $data = $request->validate([
-            'items'            => 'required|array',
-            'items.*.id'       => 'required|exists:itinerary_items,id',
-            'items.*.time'     => 'nullable|date_format:H:i',
-            'items.*.title'    => 'nullable|string|max:150',
-            'items.*.content'  => 'nullable|string',
-        ]);
-
-        DB::transaction(function () use ($data) {
-            foreach ($data['items'] as $it) {
-                ItineraryItem::whereKey($it['id'])->update([
-                    'time'    => $it['time'] ?? null,
-                    'title'   => $it['title'] ?? null,
-                    'content' => $it['content'] ?? null,
-                ]);
             }
         });
 
         return redirect()
             ->route('admin.itinerary.confirm', $itinerary)
-            ->with('ok', 'Semua kegiatan itinerary tersimpan. Silakan cek ringkasan.');
+            ->with('ok', 'Itinerary berhasil dibuat. Silakan konfirmasi sebelum dikirim.');
     }
 
-
-    // ======================================================
-    // KONFIRMASI FINAL
-    // ======================================================
+    // ── CONFIRM ────────────────────────────────────────────
     public function confirm(Itinerary $itinerary)
     {
-        $itinerary->load('days.items', 'tourLeaders');
+        $itinerary->load('days.items', 'tourLeaders', 'muthawifs');
+
         return view('admin.itinerary.confirm', compact('itinerary'));
     }
 
-    public function finalize(Itinerary $itinerary)
+    // ── FINALIZE (Kirim) ───────────────────────────────────
+    public function finalize(Itinerary $itinerary): RedirectResponse
     {
+        $itinerary->update(['status' => 'sent']);
+
+        // TODO: dispatch notification/push ke penerima
+
         return redirect()
             ->route('admin.itinerary.show', $itinerary)
-            ->with('ok', 'Itinerary telah dikonfirmasi dan tersimpan.');
+            ->with('ok', 'Itinerary berhasil dikirim ke penerima.');
     }
 
-
-    // ======================================================
-    // SHOW / EDIT / UPDATE
-    // ======================================================
+    // ── SHOW ───────────────────────────────────────────────
     public function show(Itinerary $itinerary)
     {
-        $itinerary->load('days.items', 'tourLeaders');
+        $itinerary->load('days.items', 'tourLeaders', 'muthawifs');
+
         return view('admin.itinerary.show', compact('itinerary'));
     }
 
-   public function edit(Itinerary $itinerary)
-{
-    $itinerary->load('tourLeaders', 'days.items');
-    $tourLeaders = TourLeader::orderBy('name')->get();
-    $cities = City::orderBy('name')->get(); // ⬅️ ambil kota
+    // ── EDIT ───────────────────────────────────────────────
+    public function edit(Itinerary $itinerary)
+    {
+        $itinerary->load('days.items', 'tourLeaders', 'muthawifs');
 
-    return view(
-        'admin.itinerary.edit',
-        compact('itinerary', 'tourLeaders', 'cities')
-    );
-}
+        $tourLeaders = TourLeader::orderBy('name')->get();
+        $muthawifs   = Muthawif::orderBy('nama')->get();
 
-public function update(Request $request, Itinerary $itinerary)
-{
-    $data = $request->validate([
-        'title'         => 'required|string|max:150',
-        'start_date'    => 'nullable|date',
-        'end_date'      => 'nullable|date|after_or_equal:start_date',
-        'tourleaders'   => 'required|array|min:1',
-        'tourleaders.*' => 'exists:tour_leaders,id',
-    ]);
+        // TAMBAHAN
+        $cities = City::orderBy('name')->get();
 
-    DB::transaction(function () use ($itinerary, $data) {
+        return view('admin.itinerary.edit', compact(
+            'itinerary',
+            'tourLeaders',
+            'muthawifs',
+            'cities'
+        ));
+    }
 
-        $itinerary->update([
-            'title'      => $data['title'],
-            'start_date' => $data['start_date'] ?? null,
-            'end_date'   => $data['end_date'] ?? null,
+    // ── UPDATE ─────────────────────────────────────────────
+    public function update(Request $request, Itinerary $itinerary): RedirectResponse
+    {
+        $data = $request->validate([
+            'title'            => 'required|string|max:150',
+            'start_date'       => 'required|date',
+            'end_date'         => 'required|date|after_or_equal:start_date',
+            'send_to'          => 'required|in:all_users,all_tourleaders,all_muthawif,selected',
+            'selected_users'   => 'array',
+            'selected_users.*' => 'string',
+
+            'new_days'                      => 'nullable|array',
+            'new_days.*.city'               => 'nullable|string|max:120',
+            'new_days.*.date'               => 'nullable|date',
+            'new_days.*.items'              => 'nullable|array',
+            'new_days.*.items.*.start_time' => 'nullable|date_format:H:i',
+            'new_days.*.items.*.end_time'   => 'nullable|date_format:H:i',
+            'new_days.*.items.*.content'    => 'nullable|string',
+            'new_days.*.items.*.title'      => 'nullable|string|max:150',
+
         ]);
 
-        // SYNC CHECKBOX TL
-        $itinerary->tourLeaders()->sync($data['tourleaders']);
-    });
-
-    return redirect()
-        ->route('admin.itinerary.edit', $itinerary)
-        ->with('ok', 'Itinerary & Tour Leader berhasil diperbarui.');
-}
-// ======================================================
-// DELETE
-// ======================================================
-public function destroy(Itinerary $itinerary): RedirectResponse
-{
-    DB::transaction(function () use ($itinerary) {
-        // Hapus relasi TL dulu (kalau pakai pivot)
-        $itinerary->tourLeaders()->detach();
-
-        // Hapus semua item & day (kalau belum pakai cascade)
-        foreach ($itinerary->days as $day) {
-            $day->items()->delete();
+        if ($data['send_to'] === 'selected') {
+            $request->validate([
+                'selected_users' => 'required|array|min:1',
+            ]);
         }
 
-        $itinerary->days()->delete();
+        DB::transaction(function () use ($itinerary, $data, $request) {
 
-        $itinerary->delete();
-    });
+            $oldTotalDays = \Carbon\Carbon::parse($itinerary->start_date)
+                ->diffInDays(\Carbon\Carbon::parse($itinerary->end_date)) + 1;
 
-    return redirect()
-        ->route('admin.itinerary.index')
-        ->with('ok', 'Itinerary berhasil dihapus.');
-}
+            $newTotalDays = \Carbon\Carbon::parse($data['start_date'])
+                ->diffInDays(\Carbon\Carbon::parse($data['end_date'])) + 1;
+
+            $itinerary->update([
+                'title'      => $data['title'],
+                'start_date' => $data['start_date'],
+                'end_date'   => $data['end_date'],
+                'send_to'    => $data['send_to'],
+            ]);
+
+            // ── SHIFT DAYS DATES ─────────────────────────────────────
+            $startDate = \Carbon\Carbon::parse($data['start_date']);
+            foreach ($itinerary->days()->reorder()->orderBy('day_number')->get() as $day) {
+                $expectedDate = $startDate->copy()->addDays($day->day_number - 1);
+                if (!$day->date || !$day->date->eq($expectedDate)) {
+                    $day->update(['date' => $expectedDate]);
+                }
+            }
+
+            // ── TAMBAH HARI ──────────────────────────────────────────
+            if ($newTotalDays > $oldTotalDays) {
+                $lastDay = \App\Models\ItineraryDay::where('itinerary_id', $itinerary->id)->orderByDesc('day_number')->first();
+                $lastDate = $lastDay?->date
+                    ? \Carbon\Carbon::parse($lastDay->date)
+                    : \Carbon\Carbon::parse($data['start_date']);
+
+                for ($i = $oldTotalDays + 1; $i <= $newTotalDays; $i++) {
+                    $newDate    = $lastDate->copy()->addDays($i - $oldTotalDays);
+                    $newDayData = $data['new_days'][$i] ?? [];
+
+                    $day = ItineraryDay::create([
+                        'itinerary_id' => $itinerary->id,
+                        'day_number'   => $i,
+                        'city'         => $newDayData['city'] ?? null,
+                        'date'         => $newDayData['date'] ?? $newDate,
+                        'item_count'   => 0,
+                    ]);
+
+                    if (!empty($newDayData['items'])) {
+                        $seq = 1;
+                        foreach ($newDayData['items'] as $itemData) {
+                            // Skip hanya kalau judul juga kosong
+                            if (empty($itemData['title']) && empty($itemData['content']) && empty($itemData['start_time'])) {
+                                continue;
+                            }
+                            ItineraryItem::create([
+                                'itinerary_day_id' => $day->id,
+                                'sequence'         => $seq++,
+                                'start_time'       => $itemData['start_time'] ?? null,
+                                'end_time'         => $itemData['end_time']   ?? null,
+                                'title'            => $itemData['title'] ?? $itemData['content'] ?? '',
+                                'content'          => $itemData['content']    ?? null,
+                            ]);
+                        }
+                        $day->update(['item_count' => $day->items()->count()]);
+                    }
+                }
+            }
+
+            // ── KURANGI HARI ─────────────────────────────────────────
+            if ($newTotalDays < $oldTotalDays) {
+                $daysToDelete = $itinerary->days()
+                    ->where('day_number', '>', $newTotalDays)
+                    ->get();
+
+                foreach ($daysToDelete as $day) {
+                    $day->items()->delete();
+                    $day->delete();
+                }
+            }
+
+            // ── SYNC RECIPIENTS ──────────────────────────────────────
+            $this->syncRecipients(
+                $itinerary,
+                $data['send_to'],
+                $data['selected_users'] ?? []
+            );
+        });
+
+        if ($request->filled('_reduce_days')) {
+            $totalHari = (int) $request->input('_reduce_days');
+            return redirect()
+                ->route('admin.itinerary.edit', $itinerary)
+                ->with('ok', "Tanggal berhasil dikurangi, itinerary sekarang menjadi {$totalHari} hari.");
+        }
+
+        return redirect()
+            ->route('admin.itinerary.confirm', $itinerary)
+            ->with('ok', 'Itinerary berhasil diperbarui. Silakan konfirmasi sebelum dikirim.');
+    }
 
 
+    public function destroy(Itinerary $itinerary): RedirectResponse
+    {
+        DB::transaction(function () use ($itinerary) {
+            $itinerary->tourLeaders()->detach();
+            $itinerary->muthawifs()->detach();
+
+            foreach ($itinerary->days as $day) {
+                $day->items()->delete();
+            }
+            $itinerary->days()->delete();
+            $itinerary->delete();
+        });
+
+        return redirect()
+            ->route('admin.itinerary.index')
+            ->with('ok', 'Itinerary berhasil dihapus.');
+    }
+
+    // ── PRIVATE HELPER ─────────────────────────────────────
+    private function syncRecipients(Itinerary $itinerary, string $sendTo, array $selectedUsers): void
+    {
+        if ($sendTo === 'all_tourleaders' || $sendTo === 'all_users') {
+            $itinerary->tourLeaders()->sync(TourLeader::pluck('id'));
+        } elseif ($sendTo === 'selected') {
+            $tlIds = collect($selectedUsers)
+                ->filter(fn($u) => str_starts_with($u, 'tl:'))
+                ->map(fn($u) => (int) str_replace('tl:', '', $u));
+            $itinerary->tourLeaders()->sync($tlIds);
+        } else {
+            $itinerary->tourLeaders()->sync([]);
+        }
+
+        if ($sendTo === 'all_muthawif' || $sendTo === 'all_users') {
+            $itinerary->muthawifs()->sync(Muthawif::pluck('id'));
+        } elseif ($sendTo === 'selected') {
+            $mwIds = collect($selectedUsers)
+                ->filter(fn($u) => str_starts_with($u, 'mw:'))
+                ->map(fn($u) => (int) str_replace('mw:', '', $u));
+            $itinerary->muthawifs()->sync($mwIds);
+        } else {
+            $itinerary->muthawifs()->sync([]);
+        }
+    }
 }

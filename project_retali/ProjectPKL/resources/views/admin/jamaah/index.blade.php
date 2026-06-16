@@ -42,10 +42,6 @@
                     </span>
                    </h5>
 
-
-
-
-
                     {{-- SESI --}}
                     <div class="text-muted small">
                         Sesi:

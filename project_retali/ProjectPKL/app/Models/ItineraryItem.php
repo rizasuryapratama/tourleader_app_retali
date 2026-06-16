@@ -1,5 +1,5 @@
-<?php 
-// app/Models/ItineraryItem.php
+<?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -7,24 +7,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ItineraryItem extends Model
 {
-    protected $fillable = ['itinerary_day_id','sequence','time','title','content'];
-
-    // penting: biarkan time sebagai string mentah
-    protected $casts = [
-        'time' => 'string',
+    protected $fillable = [
+        'itinerary_day_id',
+        'sequence',
+        'start_time',
+        'end_time',
+        'title',
+        'content',
     ];
 
-    // akses untuk input HTML5 time
-    public function getTimeForInputAttribute()
-    {
-        if (empty($this->time)) return null;
+    protected $casts = [
+        'start_time' => 'string',
+        'end_time' => 'string',
+    ];
 
-        // handle "08:58:00", "08:58:00.000000", atau sudah "08:58"
-        $t = $this->time;
-        if (preg_match('/^\d{2}:\d{2}$/', $t)) {
-            return $t; // sudah H:i
-        }
-        // ambil 5 karakter pertama -> H:i
-        return substr($t, 0, 5);
+    public function day(): BelongsTo
+    {
+        return $this->belongsTo(ItineraryDay::class, 'itinerary_day_id');
     }
 }

@@ -14,16 +14,16 @@ return new class extends Migration
     Schema::create('task_user', function (Illuminate\Database\Schema\Blueprint $t) {
         $t->id();
 
-        // tasks.id = BIGINT UNSIGNED (dari $table->id())
-        $t->foreignIdFor(\App\Models\Task::class) // membuat kolom task_id BIGINT
-          ->constrained()                         // references tasks(id)
+       
+        $t->foreignIdFor(\App\Models\Task::class) 
+          ->constrained()                         
           ->cascadeOnDelete();
 
-        // tour_leaders.id = BIGINT UNSIGNED
+       
         $t->unsignedBigInteger('tourleader_id');
         $t->foreign('tourleader_id')
           ->references('id')
-          ->on('tour_leaders')                    // <— pastikan nama tabel ini
+          ->on('tour_leaders')                    
           ->cascadeOnDelete();
 
         $t->timestamp('done_at')->nullable();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Tourleader;
 use App\Models\Muthawif;
@@ -49,10 +50,24 @@ class LoginController extends Controller
             ], 401);
         }
 
-        // =========================
-        // TOKEN
-        // =========================
+        // ====================================
+        // HAPUS TOKEN LAMA
+        // ====================================
+        $user->tokens()->delete();
+
+        // ====================================
+        // BUAT TOKEN BARU
+        // ====================================
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // ====================================
+        // BUAT SESSION TOKEN
+        // ====================================
+        $sessionToken = Str::random(120);
+
+        // simpan session token terbaru
+        $user->session_token = $sessionToken;
+        $user->save();
 
         // =========================
         // RESPONSE
@@ -61,9 +76,12 @@ class LoginController extends Controller
             'success' => true,
             'message' => 'Login berhasil',
             'token'   => $token,
+            'session_token' => $sessionToken,
             'user'    => [
                 'id'              => $user->id,
-                'name'            => $role === 'tourleader' ? $user->name : $user->nama,
+                'name'            => $role === 'tourleader'
+                    ? $user->name
+                    : $user->nama,
                 'email'           => $user->email,
                 'role'            => $role,
                 'kloter'          => $user->kloter?->nama,

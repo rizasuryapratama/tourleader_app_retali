@@ -41,7 +41,10 @@ Route::get('/itinerary/{itinerary}', [ItineraryApiController::class, 'show']);
 // ======================================================
 // ===============  AUTH SANCTUM USER ====================
 // ======================================================
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'check.session'
+])->group(function () {
 
     // SCAN
     Route::get('/scans', [ScanController::class, 'index']);
@@ -78,10 +81,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     // ITINERARY USER
-    Route::post('/itinerary', [ItineraryApiController::class, 'store']);
-    Route::put('/itinerary/{itinerary}', [ItineraryApiController::class, 'updateHeader']);
-    Route::put('/itinerary/{itinerary}/day-config', [ItineraryApiController::class, 'setDayConfig']);
-    Route::put('/itinerary/{itinerary}/days/{dayNumber}', [ItineraryApiController::class, 'fillDay']);
     Route::delete('/itinerary/{itinerary}', [ItineraryApiController::class, 'destroy']);
 
     // ABSENSI TOUR LEADER (ABSEN KERJA TL)
@@ -96,7 +95,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // ======================================================
 //Route::post('/tourleader/login', [TourLeaderController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'check.session'
+])->group(function () {
 
     Route::get('/tourleader/profile', [TourLeaderController::class, 'profile']);
 
@@ -123,19 +125,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // TASK TL - PER SOAL (WAJIB)
     // ===============================
 
-    // Ambil status per soal (Sudah / Belum)
     Route::get(
         '/tourleader/tasks/{task}/answers',
         [TaskApiController::class, 'answers']
     );
 
-    // Tandai soal = Sudah
+    
     Route::post(
         '/tourleader/tasks/{task}/questions/{question}/answer',
         [TaskApiController::class, 'answer']
     );
 
-    // Tandai soal = Belum
+    
     Route::delete(
         '/tourleader/tasks/{task}/questions/{question}/answer',
         [TaskApiController::class, 'unanswer']
@@ -192,7 +193,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // ======================
 //Route::post('/muthawif/login', [MuthawifApiController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'check.session'
+])->group(function () {
 
     Route::get('/muthawif/profile', [MuthawifApiController::class, 'profile']);
     Route::post('/muthawif/logout', [MuthawifApiController::class, 'logout']);
@@ -200,6 +204,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/muthawif/attendance', [AbsenMuthawifController::class, 'store']);
     Route::get('/muthawif/attendance', [AbsenMuthawifController::class, 'history']);
+
+    // ITINERARY MUTHAWIF
+    Route::get('/muthawif/itinerary', [ItineraryApiController::class, 'mwList']);
+    Route::get('/muthawif/itinerary/{itinerary}', [ItineraryApiController::class, 'mwShow']);
 });
 
 

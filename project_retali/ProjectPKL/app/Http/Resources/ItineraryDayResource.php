@@ -13,7 +13,7 @@ class ItineraryDayResource extends JsonResource
             'day_number' => $this->day_number,
             'city'       => $this->city,
             'date'       => $this->date,
-            'items'      => $this->items, // boleh dibikin resource lagi kalau mau
+            'items'      => $this->items, 
         ];
     }
 }

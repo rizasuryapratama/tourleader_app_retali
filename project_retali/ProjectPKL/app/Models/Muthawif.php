@@ -16,11 +16,13 @@ class Muthawif extends Model
         'nama',
         'email',
         'password',
-        'kloter_id'
+        'kloter_id',
+        'session_token'
     ];
 
     protected $hidden = [
-        'password', // 🔐 penting biar gak bocor ke API
+        'password',
+        'session_token',
     ];
 
     // =====================

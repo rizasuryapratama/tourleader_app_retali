@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/login_screen.dart';
+
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,78 +12,105 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _logoController;
-  late Animation<double> _logoScale;
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
 
-  final String _fullText = "Retali Mustajab Travel";
-  String _visibleText = "";
-  bool _startTyping = false;
-  bool _showCursor = true;
+  // ================= LOGO =================
+  late AnimationController _logoController;
+  late Animation<double> _logoAnimation;
+
+  // ================= TEXT =================
+  late AnimationController _textController;
+  late Animation<Offset> _textSlideAnimation;
+  late Animation<double> _textOpacityAnimation;
+
+  // ================= LOADING =================
+  int _activeDot = 0;
+  Timer? _dotTimer;
 
   @override
   void initState() {
     super.initState();
 
-    // 1. Animasi Logo (1.5 detik agar lebih dinamis)
+    // ================= LOGO =================
     _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1800),
     );
 
-    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+    _logoAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.97, end: 1.0).chain(
+          CurveTween(curve: Curves.easeOut),
+        ),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.97).chain(
+          CurveTween(curve: Curves.easeInOut),
+        ),
+        weight: 50,
+      ),
+    ]).animate(_logoController);
+
+    _logoController.repeat(reverse: true);
+
+    // ================= TEXT =================
+    _textController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _textSlideAnimation = Tween<Offset>(
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
       CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.easeOutBack, 
+        parent: _textController,
+        curve: Curves.easeOut,
       ),
     );
 
-    _logoController.forward();
+    _textOpacityAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _textController,
+        curve: Curves.easeIn,
+      ),
+    );
 
-    // 2. Mulai mengetik teks saat animasi logo hampir selesai
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) {
-        setState(() => _startTyping = true);
-        _startTypingEffect();
-        _startCursorBlink();
+        _textController.forward();
       }
     });
 
-    // 3. Cek Login & Navigasi (Total tunggu 4 detik)
+    // ================= LOADING =================
+    Future.delayed(const Duration(milliseconds: 900), () {
+      _startLoadingAnimation();
+    });
+
+    // ================= LOGIN CHECK =================
     _checkLogin();
   }
 
-  void _startTypingEffect() {
-    int index = 0;
-    Timer.periodic(const Duration(milliseconds: 70), (timer) {
-      if (index < _fullText.length) {
-        if (mounted) {
-          setState(() {
-            _visibleText += _fullText[index];
-            index++;
-          });
-        }
-      } else {
-        timer.cancel();
-      }
-    });
-  }
+  void _startLoadingAnimation() {
+    _dotTimer = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (timer) {
+        if (!mounted) return;
 
-  void _startCursorBlink() {
-    Timer.periodic(const Duration(milliseconds: 400), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        _showCursor = !_showCursor;
-      });
-    });
+        setState(() {
+          _activeDot = (_activeDot + 1) % 5;
+        });
+      },
+    );
   }
 
   Future<void> _checkLogin() async {
-    // Memberikan waktu user melihat animasi tanpa menunggu terlalu lama
-    await Future.delayed(const Duration(milliseconds: 4000));
+    await Future.delayed(const Duration(milliseconds: 2400));
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -92,12 +120,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     if (token != null && token.isNotEmpty) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => const HomeScreen(),
+        ),
       );
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+        ),
       );
     }
   }
@@ -105,56 +137,90 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void dispose() {
     _logoController.dispose();
+    _textController.dispose();
+    _dotTimer?.cancel();
     super.dispose();
+  }
+
+  // ================= LOADING DOT =================
+  Widget buildDot(int index) {
+    bool isActive = index == _activeDot;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      width: isActive ? 11 : 7,
+      height: isActive ? 11 : 7,
+      decoration: BoxDecoration(
+        color: isActive
+            ? const Color(0xFF9B3C7D)
+            : const Color(0xFFD8A8C6),
+        shape: BoxShape.circle,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // LOGO DENGAN ANIMASI ZOOM
-            ScaleTransition(
-              scale: _logoScale,
-              child: Image.asset(
-                'assets/LogoRetali.png',
-                width: 180,
-              ),
-            ),
+      backgroundColor: const Color(0xFFF7F7F7),
 
-            const SizedBox(height: 40),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30),
 
-            // TEKS DENGAN EFEK MENGETIK
-            if (_startTyping)
-              SizedBox(
-                height: 30, // Mencegah layout bergeser saat teks muncul
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: _visibleText,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF842D62),
-                        ),
-                      ),
-                      TextSpan(
-                        text: _showCursor ? "|" : " ",
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF842D62),
-                        ),
-                      ),
-                    ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                // ================= LOGO =================
+                ScaleTransition(
+                  scale: _logoAnimation,
+
+                  child: Image.asset(
+                    'assets/LogoRetali.png',
+                    width: 170,
+                    height: 170,
+                    fit: BoxFit.contain,
                   ),
                 ),
-              ),
-          ],
+
+                const SizedBox(height: 28),
+
+                // ================= TEXT =================
+                FadeTransition(
+                  opacity: _textOpacityAnimation,
+
+                  child: SlideTransition(
+                    position: _textSlideAnimation,
+
+                    child: const Text(
+                      "Retali Mustajab Travel",
+                      textAlign: TextAlign.center,
+
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF8D3B70),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 45),
+                // ================= DOT LOADING =================
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    5,
+                    (index) => buildDot(index),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
