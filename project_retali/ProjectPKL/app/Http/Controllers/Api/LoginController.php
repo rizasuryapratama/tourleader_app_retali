@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Tourleader;
+use App\Models\TourLeader;
 use App\Models\Muthawif;
 
 class LoginController extends Controller
@@ -23,7 +23,7 @@ class LoginController extends Controller
         // =========================
         // CEK TOURLEADER
         // =========================
-        $user = Tourleader::with('kloter')
+        $user = TourLeader::with('kloter')
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
 
